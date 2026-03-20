@@ -291,8 +291,27 @@ function applyActions(state, actionMap, options = {}) {
     const bx = tank.x + delta.dx;
     const by = tank.y + delta.dy;
 
-    // If spawn cell is a wall, bullet destroyed immediately
-    if (state.walls.has(key(bx, by))) continue;
+    // If spawn cell is a wall, bullet destroyed (unless pierce and wall is thin)
+    if (state.walls.has(key(bx, by))) {
+      if (!options.pierceWalls) continue;
+      const behindX = bx + delta.dx;
+      const behindY = by + delta.dy;
+      if (state.walls.has(key(behindX, behindY)) || behindX < 0 || behindX >= WIDTH || behindY < 0 || behindY >= HEIGHT) {
+        continue; // thick wall or border
+      }
+      // Spawn bullet behind the wall instead
+      const bullet = { x: behindX, y: behindY, direction: tank.direction, ownerId: tank.id };
+      let hit = false;
+      for (const t of Object.values(state.tanks)) {
+        if (t.alive && t.x === behindX && t.y === behindY) {
+          applyDamage(state, t, tank, BULLET_DAMAGE);
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) state.bullets.push(bullet);
+      continue;
+    }
 
     const bullet = { x: bx, y: by, direction: tank.direction, ownerId: tank.id };
 
@@ -327,9 +346,10 @@ function applyActions(state, actionMap, options = {}) {
           if (state.walls.has(key(behindX, behindY)) || behindX < 0 || behindX >= WIDTH || behindY < 0 || behindY >= HEIGHT) {
             continue; // thick wall or border — bullet stops
           }
-          // Single wall — bullet passes through, skip to next cell
+          // Single wall — bullet lands on the cell behind, consuming this step
           bullet.x = behindX;
           bullet.y = behindY;
+          // Still need to check tank hit on the exit cell
         } else {
           continue;
         }

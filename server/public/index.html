@@ -27,8 +27,6 @@
   #panel input.bot-port { width: 60px; }
   #panel .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; color: #666; }
   #panel button { background: #1a3a1a; color: #4ade80; border: 1px solid #2a5a2a; padding: 4px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 4px; }
-  #log { margin-top: 12px; font-size: 11px; max-height: 120px; overflow-y: auto; background: #111; padding: 8px; border-radius: 4px; border: 1px solid #1a3a1a; }
-  .log-entry { margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -45,7 +43,6 @@
 </div>
 <div id="panel"></div>
 <canvas id="canvas"></canvas>
-<div id="log"></div>
 
 <script>
 'use strict';
@@ -90,10 +87,8 @@ function resizeCanvas(w, h) {
   canvas.height = h * CELL;
   canvas.style.width  = (w * CELL) + 'px';
   canvas.style.height = (h * CELL) + 'px';
-  // Update panel/log width to match
-  const pw = (w * CELL) + 'px';
-  document.getElementById('panel').style.width = pw;
-  document.getElementById('log').style.width = pw;
+  // Update panel width to match
+  document.getElementById('panel').style.width = (w * CELL) + 'px';
 }
 resizeCanvas(20, 20);
 
@@ -563,24 +558,6 @@ function updateHUD() {
 
   renderPanel();
 
-  if (state.tick === 0) {
-    document.getElementById('log').innerHTML = '';
-  }
-
-  if (state.events && state.events.length > 0) {
-    const logEl = document.getElementById('log');
-    for (const ev of state.events) {
-      const div = document.createElement('div');
-      div.className = 'log-entry';
-      if (ev.type === 'kill') div.innerHTML = `<span style="color:#ff4444">[${state.tick}] ${ev.attackerId} killed ${ev.targetId}</span>`;
-      else if (ev.type === 'hit') div.innerHTML = `<span style="color:#f97316">[${state.tick}] ${ev.attackerId} hit ${ev.targetId} for ${ev.damage}</span>`;
-      else if (ev.type === 'medkit') div.innerHTML = `<span style="color:#4ade80">[${state.tick}] ${ev.tankId} picked up medkit (HP:${ev.hp})</span>`;
-      else if (ev.type === 'radiation_kill') div.innerHTML = `<span style="color:#a855f7">[${state.tick}] ${ev.tankId} died to radiation</span>`;
-      else if (ev.type === 'timeout_kill') div.innerHTML = `<span style="color:#666">[${state.tick}] ${ev.tankId} killed: no response for ${ev.ticks} ticks</span>`;
-      logEl.appendChild(div);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-  }
 }
 
 connect();
