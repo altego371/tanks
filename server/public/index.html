@@ -31,7 +31,8 @@
 <div id="controls">
   <button onclick="startGame()">START</button>
   <button onclick="stopGames()" style="background:#0f3460;">STOP</button>
-  <label style="margin-left:16px;">Tick ms: <input type="number" id="tick-input" value="200" min="10" step="10" onchange="setTickInterval()"></label>
+  <button onclick="resetStats()" style="background:#533483;">RESET STATS</button>
+  <label style="margin-left:16px;">Tick ms: <input type="number" id="tick-input" value="20" min="10" step="10" onchange="setTickInterval()"></label>
   <span id="tick-display" style="margin-left:16px;">Tick: -</span>
   <span id="status" style="margin-left:16px;"></span>
 </div>
@@ -86,6 +87,12 @@ function startGame() {
 function stopGames() {
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: 'stop' }));
+  }
+}
+
+function resetStats() {
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'reset_stats' }));
   }
 }
 

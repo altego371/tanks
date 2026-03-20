@@ -5,7 +5,7 @@ const path = require('path');
 const { createGame, buildBotRequest, applyActions, getPublicState } = require('./game');
 
 const PORT = process.env.PORT || 3000;
-let tickInterval = 200;
+let tickInterval = 20;
 const BOT_TIMEOUT = 100;
 
 // Bot configuration — edit URLs/IDs here
@@ -164,6 +164,13 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(msg);
       if (data.type === 'start') startGame();
       if (data.type === 'stop') stopGames();
+      if (data.type === 'reset_stats') {
+        stats.games = 0;
+        stats.draws = 0;
+        stats.history = [];
+        for (const b of BOTS) { stats.wins[b.id] = 0; stats.kills[b.id] = 0; }
+        broadcast({ type: 'stats', data: stats });
+      }
       if (data.type === 'set_tick' && typeof data.value === 'number' && data.value >= 10) {
         tickInterval = data.value;
         // Restart interval if game is running
