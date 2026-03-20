@@ -10,8 +10,8 @@ const BOT_TIMEOUT = 100;
 
 // Bot configuration — edit URLs/IDs here
 const BOTS = [
-  { id: 'bot-1', url: 'http://localhost:8081' },
-  { id: 'bot-2', url: 'http://localhost:8082' },
+  { id: 'bot-1', url: 'http://localhost:3001' },
+  { id: 'bot-2', url: 'http://localhost:3002' },
 ];
 
 const app = express();
