@@ -23,7 +23,6 @@ const wss = new WebSocketServer({ server });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-const RESTART_DELAY = 1000; // ms pause between games
 
 let gameState = null;
 let tickTimer = null;
@@ -31,12 +30,11 @@ let running = false;
 let maxTimeoutTicks = 1; // kill bot after this many consecutive timeouts
 const botTimeouts = {};  // botId -> consecutive timeout count
 
-const STATS_WINDOW = 10; // compute stats over last N games
 let history = []; // per-game results
 
 function computeStats() {
-  const recent = history.slice(-STATS_WINDOW);
-  const s = { games: recent.length, wins: {}, draws: 0, kills: {}, total: history.length };
+  const recent = history;
+  const s = { games: recent.length, wins: {}, draws: 0, kills: {} };
   for (const b of BOTS) { s.wins[b.id] = 0; s.kills[b.id] = 0; }
   for (const r of recent) {
     if (r.winner) {
@@ -135,7 +133,7 @@ async function tick() {
 
     // Auto-start next game after delay
     if (running) {
-      setTimeout(startGame, RESTART_DELAY);
+      startGame();
     }
   }
 }

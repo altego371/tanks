@@ -529,7 +529,7 @@ function renderPanel() {
     </tr>`;
   }).join('');
 
-  const gamesInfo = hasStats ? `Last ${s.games} of ${s.total || s.games} | Draws: <b>${s.draws}</b>` : '';
+  const gamesInfo = hasStats ? `Games: <b>${s.games}</b> | Draws: <b>${s.draws}</b>` : '';
 
   el.innerHTML = `
     <table>
