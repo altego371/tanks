@@ -39,6 +39,7 @@
   <button onclick="resetStats()">RESET STATS</button>
   <label>Tick ms: <input type="number" id="tick-input" value="20" min="10" step="10" onchange="setTickInterval()"></label>
   <label>Timeout ticks: <input type="number" id="timeout-ticks-input" value="1" min="0" step="1" onchange="setTimeoutTicks()"></label>
+  <label><input type="checkbox" id="pierce-walls-input" onchange="setPierceWalls()"> Pierce walls</label>
   <span class="tick-display" id="tick-display">TICK: -</span>
   <span class="status" id="status"></span>
 </div>
@@ -150,6 +151,10 @@ function setTickInterval() {
   const val = parseInt(document.getElementById('tick-input').value, 10);
   if (val >= 10) { tickInterval = val; wsSend({ type: 'set_tick', value: val }); }
 }
+function setPierceWalls() {
+  wsSend({ type: 'set_pierce_walls', value: document.getElementById('pierce-walls-input').checked });
+}
+
 function setTimeoutTicks() {
   const val = parseInt(document.getElementById('timeout-ticks-input').value, 10);
   if (val >= 0) wsSend({ type: 'set_timeout_ticks', value: val });

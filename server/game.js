@@ -184,7 +184,7 @@ const VALID_ACTIONS = new Set([
   'shoot', 'idle',
 ]);
 
-function applyActions(state, actionMap) {
+function applyActions(state, actionMap, options = {}) {
   state.events = [];
 
   // 1. Apply rotations
@@ -319,7 +319,21 @@ function applyActions(state, actionMap) {
       bullet.y += delta.dy;
 
       // Check wall/border
-      if (state.walls.has(key(bullet.x, bullet.y))) continue;
+      if (state.walls.has(key(bullet.x, bullet.y))) {
+        if (options.pierceWalls) {
+          // Pierce through single-thickness walls: check if the cell behind is also a wall
+          const behindX = bullet.x + delta.dx;
+          const behindY = bullet.y + delta.dy;
+          if (state.walls.has(key(behindX, behindY)) || behindX < 0 || behindX >= WIDTH || behindY < 0 || behindY >= HEIGHT) {
+            continue; // thick wall or border — bullet stops
+          }
+          // Single wall — bullet passes through, skip to next cell
+          bullet.x = behindX;
+          bullet.y = behindY;
+        } else {
+          continue;
+        }
+      }
       if (bullet.x < 0 || bullet.x >= WIDTH || bullet.y < 0 || bullet.y >= HEIGHT) continue;
 
       // Check tank hit

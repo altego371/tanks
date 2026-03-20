@@ -29,6 +29,7 @@ let tickTimer = null;
 let running = false;
 let maxTimeoutTicks = 1; // kill bot after this many consecutive timeouts
 const botTimeouts = {};  // botId -> consecutive timeout count
+let pierceWalls = false; // bullets pass through single-thickness walls
 
 let history = []; // per-game results
 
@@ -114,7 +115,7 @@ async function tick() {
     }
   });
 
-  gameState = applyActions(gameState, actionMap);
+  gameState = applyActions(gameState, actionMap, { pierceWalls });
   broadcast({ type: 'state', data: getPublicState(gameState) });
 
   if (gameState.over) {
@@ -197,6 +198,9 @@ wss.on('connection', (ws) => {
         history = [];
         broadcast({ type: 'bots', data: BOTS });
         broadcast({ type: 'stats', data: computeStats() });
+      }
+      if (data.type === 'set_pierce_walls') {
+        pierceWalls = !!data.value;
       }
       if (data.type === 'set_timeout_ticks' && typeof data.value === 'number' && data.value >= 0) {
         maxTimeoutTicks = data.value;
