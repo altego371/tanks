@@ -241,7 +241,6 @@ function applyActions(state, actionMap) {
 
   // Check if moving into a cell occupied by a non-moving tank
   for (const [id, pos] of Object.entries(moves)) {
-    const k = key(pos.x, pos.y);
     for (const t of Object.values(state.tanks)) {
       if (t.alive && t.id !== id && t.x === pos.x && t.y === pos.y && !moves[t.id]) {
         delete moves[id];
@@ -249,6 +248,22 @@ function applyActions(state, actionMap) {
       }
     }
   }
+
+  // Prevent head-on swaps (two tanks exchanging cells)
+  const toDelete = [];
+  for (const [idA, posA] of Object.entries(moves)) {
+    for (const [idB, posB] of Object.entries(moves)) {
+      if (idA >= idB) continue;
+      const tankA = state.tanks[idA];
+      const tankB = state.tanks[idB];
+      // A moves to B's current pos AND B moves to A's current pos
+      if (posA.x === tankB.x && posA.y === tankB.y &&
+          posB.x === tankA.x && posB.y === tankA.y) {
+        toDelete.push(idA, idB);
+      }
+    }
+  }
+  for (const id of toDelete) delete moves[id];
 
   // Apply valid moves
   for (const [id, pos] of Object.entries(moves)) {

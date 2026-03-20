@@ -104,9 +104,18 @@ function connect() {
     const msg = JSON.parse(e.data);
     if (msg.type === 'state') {
       const newState = msg.data;
-      // Detect effects
-      if (state && newState) detectEffects(state, newState);
-      prevState = state || newState;
+      // New game — reset interpolation so tanks don't fly across the map
+      if (newState.tick === 0) {
+        prevState = newState;
+        cachedWalls = null;
+        staticLayer = null;
+        explosions = [];
+        flashes = [];
+      } else {
+        // Detect effects
+        if (state && newState) detectEffects(state, newState);
+        prevState = state || newState;
+      }
       state = newState;
       lastTickTime = performance.now();
       lerpT = 0;
