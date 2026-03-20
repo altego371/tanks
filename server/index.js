@@ -5,7 +5,7 @@ const path = require('path');
 const { createGame, buildBotRequest, applyActions, getPublicState } = require('./game');
 
 const PORT = process.env.PORT || 3000;
-const TICK_INTERVAL = 200;
+let tickInterval = 200;
 const BOT_TIMEOUT = 100;
 
 // Bot configuration — edit URLs/IDs here
@@ -21,8 +21,24 @@ const wss = new WebSocketServer({ server });
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+const RESTART_DELAY = 1000; // ms pause between games
+
 let gameState = null;
 let tickTimer = null;
+let running = false;
+
+// Cumulative stats across all games
+const stats = {
+  games: 0,
+  wins: {},   // botId -> win count
+  draws: 0,
+  kills: {},  // botId -> total kills
+  history: [], // per-game results
+};
+for (const b of BOTS) {
+  stats.wins[b.id] = 0;
+  stats.kills[b.id] = 0;
+}
 
 function broadcast(data) {
   const json = JSON.stringify(data);
@@ -74,18 +90,49 @@ async function tick() {
   broadcast({ type: 'state', data: getPublicState(gameState) });
 
   if (gameState.over) {
-    console.log(`Game over at tick ${gameState.tick}. Winner: ${gameState.winner || 'draw'}`);
     clearInterval(tickTimer);
     tickTimer = null;
+
+    // Record stats
+    stats.games++;
+    const result = { game: stats.games, winner: gameState.winner, tick: gameState.tick, tanks: {} };
+    for (const tank of Object.values(gameState.tanks)) {
+      stats.kills[tank.id] = (stats.kills[tank.id] || 0) + tank.kills;
+      result.tanks[tank.id] = { hp: tank.hp, kills: tank.kills, alive: tank.alive };
+    }
+    if (gameState.winner) {
+      stats.wins[gameState.winner] = (stats.wins[gameState.winner] || 0) + 1;
+    } else {
+      stats.draws++;
+    }
+    stats.history.push(result);
+
+    console.log(`Game #${stats.games} over at tick ${gameState.tick}. Winner: ${gameState.winner || 'draw'}`);
+    broadcast({ type: 'stats', data: stats });
+
+    // Auto-start next game after delay
+    if (running) {
+      setTimeout(startGame, RESTART_DELAY);
+    }
   }
 }
 
 function startGame() {
   if (tickTimer) clearInterval(tickTimer);
+  running = true;
   gameState = createGame(BOTS);
-  console.log(`Game started with ${BOTS.length} bots`);
+  console.log(`Game #${stats.games + 1} started`);
   broadcast({ type: 'state', data: getPublicState(gameState) });
-  tickTimer = setInterval(tick, TICK_INTERVAL);
+  broadcast({ type: 'stats', data: stats });
+  tickTimer = setInterval(tick, tickInterval);
+}
+
+function stopGames() {
+  running = false;
+  if (tickTimer) {
+    clearInterval(tickTimer);
+    tickTimer = null;
+  }
 }
 
 // REST API
@@ -94,8 +141,17 @@ app.post('/api/start', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/stop', (req, res) => {
+  stopGames();
+  res.json({ ok: true });
+});
+
 app.get('/api/state', (req, res) => {
   res.json(gameState ? getPublicState(gameState) : null);
+});
+
+app.get('/api/stats', (req, res) => {
+  res.json(stats);
 });
 
 // WebSocket — send current state on connect
@@ -107,6 +163,15 @@ wss.on('connection', (ws) => {
     try {
       const data = JSON.parse(msg);
       if (data.type === 'start') startGame();
+      if (data.type === 'stop') stopGames();
+      if (data.type === 'set_tick' && typeof data.value === 'number' && data.value >= 10) {
+        tickInterval = data.value;
+        // Restart interval if game is running
+        if (tickTimer) {
+          clearInterval(tickTimer);
+          tickTimer = setInterval(tick, tickInterval);
+        }
+      }
     } catch {}
   });
 });

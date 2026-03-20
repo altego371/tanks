@@ -11,9 +11,17 @@
   #controls { margin-bottom: 12px; }
   #controls button { background: #e94560; color: #fff; border: none; padding: 8px 20px; font-size: 14px; cursor: pointer; font-family: inherit; border-radius: 4px; }
   #controls button:hover { background: #c73652; }
+  #controls input[type=number] { width: 70px; padding: 6px 8px; font-size: 14px; font-family: inherit; background: #16213e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; text-align: center; }
+  #controls label { font-size: 13px; color: #aaa; }
   #hud { display: flex; gap: 24px; margin-bottom: 12px; font-size: 14px; }
   .tank-info { padding: 6px 12px; border-radius: 4px; background: #16213e; }
   canvas { border: 2px solid #0f3460; border-radius: 4px; }
+  #stats { margin-bottom: 12px; width: 602px; background: #16213e; padding: 12px; border-radius: 4px; font-size: 14px; }
+  #stats table { width: 100%; border-collapse: collapse; }
+  #stats th, #stats td { padding: 4px 8px; text-align: left; }
+  #stats th { color: #e94560; border-bottom: 1px solid #0f3460; }
+  #stats td { border-bottom: 1px solid #0f3460; }
+  .stats-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
   #log { margin-top: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; width: 602px; background: #16213e; padding: 8px; border-radius: 4px; }
   .log-entry { margin-bottom: 2px; }
 </style>
@@ -21,10 +29,13 @@
 <body>
 <h1>TANK BATTLE</h1>
 <div id="controls">
-  <button onclick="startGame()">START GAME</button>
+  <button onclick="startGame()">START</button>
+  <button onclick="stopGames()" style="background:#0f3460;">STOP</button>
+  <label style="margin-left:16px;">Tick ms: <input type="number" id="tick-input" value="200" min="10" step="10" onchange="setTickInterval()"></label>
   <span id="tick-display" style="margin-left:16px;">Tick: -</span>
   <span id="status" style="margin-left:16px;"></span>
 </div>
+<div id="stats"></div>
 <div id="hud"></div>
 <canvas id="canvas" width="602" height="602"></canvas>
 <div id="log"></div>
@@ -46,6 +57,7 @@ function getTankColor(id) {
 
 let ws = null;
 let state = null;
+let statsData = null;
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -57,6 +69,10 @@ function connect() {
       render();
       updateHUD();
     }
+    if (msg.type === 'stats') {
+      statsData = msg.data;
+      updateStats();
+    }
   };
   ws.onclose = () => setTimeout(connect, 1000);
 }
@@ -65,6 +81,48 @@ function startGame() {
   if (ws && ws.readyState === 1) {
     ws.send(JSON.stringify({ type: 'start' }));
   }
+}
+
+function stopGames() {
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'stop' }));
+  }
+}
+
+function setTickInterval() {
+  const val = parseInt(document.getElementById('tick-input').value, 10);
+  if (ws && ws.readyState === 1 && val >= 10) {
+    ws.send(JSON.stringify({ type: 'set_tick', value: val }));
+  }
+}
+
+function updateStats() {
+  const el = document.getElementById('stats');
+  if (!statsData || statsData.games === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  const s = statsData;
+  const ids = Object.keys(s.wins);
+  const rows = ids.map(id => {
+    const color = getTankColor(id);
+    const winRate = s.games > 0 ? ((s.wins[id] / s.games) * 100).toFixed(0) : 0;
+    return `<tr>
+      <td style="color:${color}"><b>${id}</b></td>
+      <td>${s.wins[id]}</td>
+      <td>${winRate}%</td>
+      <td>${s.kills[id] || 0}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="stats-header">
+      <span>Games: <b>${s.games}</b></span>
+      <span>Draws: <b>${s.draws}</b></span>
+    </div>
+    <table>
+      <tr><th>Bot</th><th>Wins</th><th>Win%</th><th>Total Kills</th></tr>
+      ${rows}
+    </table>`;
 }
 
 function render() {
@@ -198,6 +256,11 @@ function updateHUD() {
       <b>${t.id}</b> ${status} | Score:${t.score} | Kills:${t.kills}
     </div>`;
   }).join('');
+
+  // Clear log on new game start
+  if (state.tick === 0) {
+    document.getElementById('log').innerHTML = '';
+  }
 
   // Events log
   if (state.events && state.events.length > 0) {
