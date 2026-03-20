@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tank Battle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #eee; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 8px; color: #e94560; }
+  #controls { margin-bottom: 12px; }
+  #controls button { background: #e94560; color: #fff; border: none; padding: 8px 20px; font-size: 14px; cursor: pointer; font-family: inherit; border-radius: 4px; }
+  #controls button:hover { background: #c73652; }
+  #hud { display: flex; gap: 24px; margin-bottom: 12px; font-size: 14px; }
+  .tank-info { padding: 6px 12px; border-radius: 4px; background: #16213e; }
+  canvas { border: 2px solid #0f3460; border-radius: 4px; }
+  #log { margin-top: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; width: 602px; background: #16213e; padding: 8px; border-radius: 4px; }
+  .log-entry { margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<h1>TANK BATTLE</h1>
+<div id="controls">
+  <button onclick="startGame()">START GAME</button>
+  <span id="tick-display" style="margin-left:16px;">Tick: -</span>
+  <span id="status" style="margin-left:16px;"></span>
+</div>
+<div id="hud"></div>
+<canvas id="canvas" width="602" height="602"></canvas>
+<div id="log"></div>
+
+<script>
+const CELL = 30;
+const PAD = 1;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const TANK_COLORS = ['#0ea5e9', '#f97316', '#22c55e', '#a855f7', '#ef4444', '#eab308'];
+const colorMap = {};
+let colorIdx = 0;
+
+function getTankColor(id) {
+  if (!colorMap[id]) colorMap[id] = TANK_COLORS[colorIdx++ % TANK_COLORS.length];
+  return colorMap[id];
+}
+
+let ws = null;
+let state = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'state') {
+      state = msg.data;
+      render();
+      updateHUD();
+    }
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+
+function startGame() {
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'start' }));
+  }
+}
+
+function render() {
+  if (!state) return;
+  const { width, height, walls, tanks, bullets, pickups, radiationLevel } = state;
+
+  ctx.fillStyle = '#0f3460';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw cells
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      const px = x * CELL + PAD;
+      const py = y * CELL + PAD;
+      const s = CELL - PAD * 2;
+
+      // Background
+      ctx.fillStyle = '#16213e';
+      ctx.fillRect(px, py, s, s);
+
+      // Radiation
+      if (radiationLevel > 0 && isIrradiated(x, y, radiationLevel)) {
+        ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+        ctx.fillRect(px, py, s, s);
+      }
+    }
+  }
+
+  // Walls
+  for (const [wx, wy] of walls) {
+    ctx.fillStyle = '#533483';
+    ctx.fillRect(wx * CELL + PAD, wy * CELL + PAD, CELL - PAD * 2, CELL - PAD * 2);
+  }
+
+  // Border walls
+  for (let i = 0; i < width; i++) {
+    drawBorderWall(i, 0);
+    drawBorderWall(i, height - 1);
+  }
+  for (let i = 0; i < height; i++) {
+    drawBorderWall(0, i);
+    drawBorderWall(width - 1, i);
+  }
+
+  // Pickups
+  for (const p of pickups) {
+    ctx.fillStyle = '#22c55e';
+    const cx = p.x * CELL + CELL / 2;
+    const cy = p.y * CELL + CELL / 2;
+    // Draw cross
+    ctx.fillRect(cx - 3, cy - 8, 6, 16);
+    ctx.fillRect(cx - 8, cy - 3, 16, 6);
+  }
+
+  // Tanks
+  for (const tank of tanks) {
+    if (!tank.alive) continue;
+    const color = getTankColor(tank.id);
+    const px = tank.x * CELL + PAD + 2;
+    const py = tank.y * CELL + PAD + 2;
+    const s = CELL - PAD * 2 - 4;
+
+    // Body
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, s, s);
+
+    // Direction barrel
+    ctx.fillStyle = '#fff';
+    const cx = tank.x * CELL + CELL / 2;
+    const cy = tank.y * CELL + CELL / 2;
+    const barrelLen = 10;
+    const barrelW = 3;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    const angles = { up: -Math.PI/2, down: Math.PI/2, left: Math.PI, right: 0 };
+    ctx.rotate(angles[tank.direction] || 0);
+    ctx.fillRect(0, -barrelW/2, barrelLen, barrelW);
+    ctx.restore();
+
+    // HP bar
+    const hpFrac = Math.max(0, tank.hp / 100);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(tank.x * CELL + 2, tank.y * CELL - 5, CELL - 4, 4);
+    ctx.fillStyle = hpFrac > 0.5 ? '#22c55e' : hpFrac > 0.25 ? '#eab308' : '#ef4444';
+    ctx.fillRect(tank.x * CELL + 2, tank.y * CELL - 5, (CELL - 4) * Math.min(hpFrac, 1), 4);
+
+    // Tank ID label
+    ctx.fillStyle = '#fff';
+    ctx.font = '9px monospace';
+    ctx.fillText(tank.id, tank.x * CELL + 2, tank.y * CELL - 7);
+  }
+
+  // Bullets
+  for (const b of bullets) {
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(b.x * CELL + CELL / 2, b.y * CELL + CELL / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBorderWall(x, y) {
+  ctx.fillStyle = '#2c2c54';
+  ctx.fillRect(x * CELL + PAD, y * CELL + PAD, CELL - PAD * 2, CELL - PAD * 2);
+}
+
+function isIrradiated(x, y, level) {
+  if (level <= 0) return false;
+  return Math.min(x - 1, y - 1, 18 - x, 18 - y) < level;
+}
+
+function updateHUD() {
+  if (!state) return;
+  document.getElementById('tick-display').textContent = `Tick: ${state.tick}`;
+
+  const statusEl = document.getElementById('status');
+  if (state.over) {
+    statusEl.textContent = state.winner ? `Winner: ${state.winner}` : 'DRAW';
+    statusEl.style.color = '#22c55e';
+  } else {
+    statusEl.textContent = 'RUNNING';
+    statusEl.style.color = '#eab308';
+  }
+
+  const hud = document.getElementById('hud');
+  hud.innerHTML = state.tanks.map(t => {
+    const color = getTankColor(t.id);
+    const status = t.alive ? `HP:${t.hp}` : 'DEAD';
+    return `<div class="tank-info" style="border-left:3px solid ${color}">
+      <b>${t.id}</b> ${status} | Score:${t.score} | Kills:${t.kills}
+    </div>`;
+  }).join('');
+
+  // Events log
+  if (state.events && state.events.length > 0) {
+    const logEl = document.getElementById('log');
+    for (const ev of state.events) {
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      if (ev.type === 'kill') div.innerHTML = `<span style="color:#ef4444">[${state.tick}] ${ev.attackerId} killed ${ev.targetId}</span>`;
+      else if (ev.type === 'hit') div.innerHTML = `<span style="color:#f97316">[${state.tick}] ${ev.attackerId} hit ${ev.targetId} for ${ev.damage}</span>`;
+      else if (ev.type === 'medkit') div.innerHTML = `<span style="color:#22c55e">[${state.tick}] ${ev.tankId} picked up medkit (HP:${ev.hp})</span>`;
+      else if (ev.type === 'radiation_kill') div.innerHTML = `<span style="color:#a855f7">[${state.tick}] ${ev.tankId} died to radiation</span>`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  }
+}
+
+connect();
+</script>
+</body>
+</html>
