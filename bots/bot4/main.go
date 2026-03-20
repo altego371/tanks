@@ -604,6 +604,61 @@ func decide(r Req) string {
 	// ── Find nearest safe medkit ──
 	med := w.bestMedkit(me)
 
+	// ── Check if radiation is closing in everywhere around us ──
+	// If all 4 adjacent cells + our cell are irradiated (or blocked),
+	// we're trapped in radiation → medkits are the only way to survive
+	radEverywhere := w.irrad(me.X, me.Y)
+	if radEverywhere {
+		safeNeighbor := false
+		for _, d := range allDirs {
+			dx, dy := dd(d)
+			nx, ny := me.X+dx, me.Y+dy
+			if !w.blocked(nx, ny) && !w.irrad(nx, ny) {
+				safeNeighbor = true
+				break
+			}
+		}
+		if !safeNeighbor {
+			radEverywhere = true
+		} else {
+			radEverywhere = false
+		}
+	}
+
+	// ════════════════════════════════════════════════════════
+	// RADIATION EVERYWHERE: medkits are our only lifeline
+	// Override everything — chase any medkit to outlast radiation
+	// Also accept medkits IN radiation (better +50 HP than nothing)
+	// ════════════════════════════════════════════════════════
+	if radEverywhere {
+		// try safe medkit first
+		if med != nil {
+			if a := w.moveTo(me, *med); a != "" {
+				return a
+			}
+		}
+		// no safe medkit — go for ANY medkit, even in radiation
+		var anyMed *Pt
+		anyMedD := math.MaxInt32
+		for _, p := range r.Pickups {
+			d := dist(myP, Pt{p.X, p.Y})
+			if d < anyMedD {
+				anyMedD = d
+				pt := Pt{p.X, p.Y}
+				anyMed = &pt
+			}
+		}
+		if anyMed != nil {
+			if a := w.moveTo(me, *anyMed); a != "" {
+				return a
+			}
+		}
+		// no medkits at all — move toward center (last to be irradiated)
+		if a := w.moveTo(me, Pt{w.CX, w.CY}); a != "" {
+			return a
+		}
+	}
+
 	// ── Find best enemy target (prefer low HP, prefer close) ──
 	var bestEnemy *Tank
 	bestEScore := math.MaxInt32
@@ -775,9 +830,10 @@ func decide(r Req) string {
 	}
 
 	// ════════════════════════════════════════════════════════
-	// HP ADVANTAGE: if we have ≥40 more HP, rush the enemy
+	// HP ADVANTAGE: only attack head-on if we have MORE HP
+	// Rush directly at them — we win the trade
 	// ════════════════════════════════════════════════════════
-	if bestEnemy != nil && me.HP >= bestEnemy.HP+40 {
+	if bestEnemy != nil && me.HP > bestEnemy.HP {
 		tgt := Pt{bestEnemy.X, bestEnemy.Y}
 		if a := w.moveTo(me, tgt); a != "" {
 			return a
@@ -787,15 +843,18 @@ func decide(r Req) string {
 	// ════════════════════════════════════════════════════════
 	// HUNT: approach enemy from BEHIND, not front
 	// Safer + enemy has to rotate before they can shoot back
+	// This is the ONLY way we approach when enemy has >= our HP
 	// ════════════════════════════════════════════════════════
 	if bestEnemy != nil {
 		behind := w.behindPoint(*bestEnemy)
 		if a := w.moveTo(me, behind); a != "" {
 			return a
 		}
-		// fallback: just go toward them
-		if a := w.moveTo(me, Pt{bestEnemy.X, bestEnemy.Y}); a != "" {
-			return a
+		// fallback: go toward them ONLY if we have more HP
+		if me.HP > bestEnemy.HP {
+			if a := w.moveTo(me, Pt{bestEnemy.X, bestEnemy.Y}); a != "" {
+				return a
+			}
 		}
 	}
 

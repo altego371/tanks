@@ -853,6 +853,6 @@ func main() {
 	})
 
 	addr := fmt.Sprintf(":%d", *port)
-	log.Printf("[bot] listening on %s", addr)закомить
+	log.Printf("[bot] listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
