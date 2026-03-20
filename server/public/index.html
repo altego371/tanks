@@ -6,25 +6,27 @@
 <title>Tank Battle</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; color: #eee; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 16px; }
-  h1 { font-size: 20px; margin-bottom: 8px; color: #e94560; }
-  #controls { margin-bottom: 12px; }
-  #controls button { background: #e94560; color: #fff; border: none; padding: 8px 20px; font-size: 14px; cursor: pointer; font-family: inherit; border-radius: 4px; }
-  #controls button:hover { background: #c73652; }
-  #controls input[type=number] { width: 70px; padding: 6px 8px; font-size: 14px; font-family: inherit; background: #16213e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; text-align: center; }
-  #controls label { font-size: 13px; color: #aaa; }
-  canvas { border: 2px solid #0f3460; border-radius: 4px; }
-  #panel { margin-bottom: 12px; width: 602px; background: #16213e; padding: 12px; border-radius: 4px; font-size: 13px; }
+  body { background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 8px; color: #4ade80; letter-spacing: 4px; }
+  #controls { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  #controls button { background: #1a3a1a; color: #4ade80; border: 1px solid #2a5a2a; padding: 8px 20px; font-size: 14px; cursor: pointer; font-family: inherit; border-radius: 4px; }
+  #controls button:hover { background: #2a5a2a; }
+  #controls input[type=number] { width: 70px; padding: 6px 8px; font-size: 14px; font-family: inherit; background: #111; color: #4ade80; border: 1px solid #2a5a2a; border-radius: 4px; text-align: center; }
+  #controls label { font-size: 13px; color: #666; }
+  #controls .tick-display { color: #4ade80; font-size: 14px; }
+  #controls .status { font-size: 14px; }
+  canvas { border: 2px solid #1a3a1a; border-radius: 4px; display: block; }
+  #panel { margin-bottom: 12px; background: #111; padding: 12px; border-radius: 4px; font-size: 13px; border: 1px solid #1a3a1a; }
   #panel table { width: 100%; border-collapse: collapse; }
-  #panel th, #panel td { padding: 5px 6px; text-align: center; }
-  #panel th { color: #e94560; border-bottom: 1px solid #0f3460; font-size: 12px; }
-  #panel td { border-bottom: 1px solid #0f3460; }
-  #panel input { padding: 3px 6px; font-size: 13px; font-family: inherit; background: #1a1a2e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; text-align: center; }
+  #panel th, #panel td { padding: 5px 8px; text-align: center; }
+  #panel th { color: #4ade80; border-bottom: 1px solid #1a3a1a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  #panel td { border-bottom: 1px solid #111; }
+  #panel input { padding: 3px 6px; font-size: 13px; font-family: inherit; background: #0a0a0a; color: #ccc; border: 1px solid #2a5a2a; border-radius: 4px; text-align: center; }
   #panel input.bot-id { width: 80px; }
   #panel input.bot-port { width: 60px; }
-  #panel .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; }
-  #panel button { background: #0f3460; color: #eee; border: none; padding: 4px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 4px; }
-  #log { margin-top: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; width: 602px; background: #16213e; padding: 8px; border-radius: 4px; }
+  #panel .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; color: #666; }
+  #panel button { background: #1a3a1a; color: #4ade80; border: 1px solid #2a5a2a; padding: 4px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 4px; }
+  #log { margin-top: 12px; font-size: 11px; max-height: 120px; overflow-y: auto; background: #111; padding: 8px; border-radius: 4px; border: 1px solid #1a3a1a; }
   .log-entry { margin-bottom: 2px; }
 </style>
 </head>
@@ -32,22 +34,21 @@
 <h1>TANK BATTLE</h1>
 <div id="controls">
   <button onclick="startGame()">START</button>
-  <button onclick="stopGames()" style="background:#0f3460;">STOP</button>
-  <button onclick="resetStats()" style="background:#533483;">RESET STATS</button>
-  <label style="margin-left:16px;">Tick ms: <input type="number" id="tick-input" value="20" min="10" step="10" onchange="setTickInterval()"></label>
-  <span id="tick-display" style="margin-left:16px;">Tick: -</span>
-  <span id="status" style="margin-left:16px;"></span>
+  <button onclick="stopGames()">STOP</button>
+  <button onclick="resetStats()">RESET STATS</button>
+  <label>Tick ms: <input type="number" id="tick-input" value="20" min="10" step="10" onchange="setTickInterval()"></label>
+  <span class="tick-display" id="tick-display">TICK: -</span>
+  <span class="status" id="status"></span>
 </div>
 <div id="panel"></div>
-<canvas id="canvas" width="602" height="602"></canvas>
+<canvas id="canvas"></canvas>
 <div id="log"></div>
 
 <script>
-const CELL = 30;
-const PAD = 1;
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+'use strict';
 
+// ── Constants ──────────────────────────────────────────────────────────
+const CELL = 32;
 const TANK_COLORS = ['#0ea5e9', '#f97316', '#22c55e', '#a855f7', '#ef4444', '#eab308'];
 const colorMap = {};
 let colorIdx = 0;
@@ -57,19 +58,62 @@ function getTankColor(id) {
   return colorMap[id];
 }
 
+// ── State ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
 let ws = null;
 let state = null;
+let prevState = null;
 let statsData = null;
 let botsConfig = [];
 
+// Render interpolation
+let lastTickTime = performance.now();
+let lerpT = 1;
+let tickInterval = 20; // synced with server default
+
+// Static map layer (offscreen canvas)
+let staticLayer = null;
+let cachedWalls = null;
+
+// Effects
+let explosions = [];  // {x, y, t}
+let flashes    = [];  // {x, y, t}
+
+// ── Canvas sizing ──────────────────────────────────────────────────────
+function resizeCanvas(w, h) {
+  canvas.width  = w * CELL;
+  canvas.height = h * CELL;
+  canvas.style.width  = (w * CELL) + 'px';
+  canvas.style.height = (h * CELL) + 'px';
+  // Update panel/log width to match
+  const pw = (w * CELL) + 'px';
+  document.getElementById('panel').style.width = pw;
+  document.getElementById('log').style.width = pw;
+}
+resizeCanvas(20, 20);
+
+// ── WebSocket ──────────────────────────────────────────────────────────
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'state') {
-      state = msg.data;
-      render();
+      const newState = msg.data;
+      // Detect effects
+      if (state && newState) detectEffects(state, newState);
+      prevState = state || newState;
+      state = newState;
+      lastTickTime = performance.now();
+      lerpT = 0;
+      // Rebuild static layer if walls changed
+      if (state && !cachedWalls) {
+        cachedWalls = state.walls;
+        resizeCanvas(state.width, state.height);
+        buildStaticLayer(state.width, state.height, state.walls);
+      }
       updateHUD();
     }
     if (msg.type === 'stats') {
@@ -84,30 +128,332 @@ function connect() {
   ws.onclose = () => setTimeout(connect, 1000);
 }
 
-function startGame() {
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: 'start' }));
+function wsSend(obj) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+function startGame() { wsSend({ type: 'start' }); cachedWalls = null; staticLayer = null; }
+function stopGames() { wsSend({ type: 'stop' }); }
+function resetStats() { wsSend({ type: 'reset_stats' }); }
+function setTickInterval() {
+  const val = parseInt(document.getElementById('tick-input').value, 10);
+  if (val >= 10) { tickInterval = val; wsSend({ type: 'set_tick', value: val }); }
+}
+function applyBotConfig() {
+  const el = document.getElementById('panel');
+  const ids = el.querySelectorAll('.bot-id');
+  const ports = el.querySelectorAll('.bot-port');
+  const bots = [];
+  ids.forEach((inp, i) => {
+    const id = inp.value.trim(), port = ports[i].value.trim();
+    if (id && port) bots.push({ id, url: `http://localhost:${port}` });
+  });
+  if (bots.length > 0) wsSend({ type: 'set_bots', bots });
+}
+
+// ── Effect detection ───────────────────────────────────────────────────
+function detectEffects(prev, next) {
+  const now = performance.now();
+  // Tank kills -> explosion
+  for (const nt of next.tanks) {
+    const pt = prev.tanks.find(t => t.id === nt.id);
+    if (pt && pt.alive && !nt.alive) {
+      explosions.push({ x: nt.x, y: nt.y, t: now });
+    }
+  }
+  // Bullet hits -> flash
+  if (next.events) {
+    for (const ev of next.events) {
+      if (ev.type === 'hit') {
+        const t = next.tanks.find(t => t.id === ev.targetId);
+        if (t) flashes.push({ x: t.x, y: t.y, t: now });
+      }
+    }
   }
 }
 
-function stopGames() {
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: 'stop' }));
+// ── Static map layer ───────────────────────────────────────────────────
+function buildStaticLayer(W, H, walls) {
+  const wallSet = new Set(walls.map(([x,y]) => `${x},${y}`));
+  const off = document.createElement('canvas');
+  off.width = W * CELL; off.height = H * CELL;
+  const oc = off.getContext('2d');
+
+  // Background
+  oc.fillStyle = '#050e05';
+  oc.fillRect(0, 0, off.width, off.height);
+
+  // Grid dots
+  oc.fillStyle = '#0a1a0a';
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      oc.fillRect(x * CELL + CELL/2 - 1, y * CELL + CELL/2 - 1, 2, 2);
+    }
+  }
+
+  // Walls
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const isEdge = x === 0 || y === 0 || x === W-1 || y === H-1;
+      const isWall = wallSet.has(`${x},${y}`);
+      if (isEdge || isWall) {
+        const px = x * CELL, py = y * CELL;
+        oc.fillStyle = isEdge ? '#0d200d' : '#1a2e1a';
+        oc.fillRect(px, py, CELL, CELL);
+        // Diagonal hatch
+        oc.save();
+        oc.strokeStyle = isEdge ? '#0a170a' : '#152615';
+        oc.lineWidth = 1;
+        oc.beginPath();
+        for (let d = -CELL; d < CELL * 2; d += 8) {
+          oc.moveTo(px + d, py);
+          oc.lineTo(px + d + CELL, py + CELL);
+        }
+        oc.stroke();
+        oc.restore();
+        // Border
+        oc.strokeStyle = isEdge ? '#1a3a1a' : '#2a4a2a';
+        oc.lineWidth = 1;
+        oc.strokeRect(px + 0.5, py + 0.5, CELL - 1, CELL - 1);
+      }
+    }
+  }
+
+  staticLayer = off;
+}
+
+// ── Drawing helpers ────────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function dirDelta(dir) {
+  switch (dir) {
+    case 'up':    return [0, -1];
+    case 'down':  return [0,  1];
+    case 'left':  return [-1, 0];
+    case 'right': return [1,  0];
+    default:      return [0,  0];
   }
 }
 
-function resetStats() {
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: 'reset_stats' }));
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawTank(cx, cy, dir, color, hp) {
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Glow
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+
+  // Body (rounded rect)
+  const bw = CELL * 0.65, bh = CELL * 0.65;
+  ctx.fillStyle = color + '33';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  roundRect(ctx, -bw/2, -bh/2, bw, bh, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  // Turret circle
+  ctx.beginPath();
+  ctx.arc(0, 0, CELL * 0.18, 0, Math.PI * 2);
+  ctx.fillStyle = color + '88';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Barrel
+  ctx.shadowBlur = 6;
+  const [dx, dy] = dirDelta(dir);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(dx * CELL * 0.18, dy * CELL * 0.18);
+  ctx.lineTo(dx * CELL * 0.48, dy * CELL * 0.48);
+  ctx.stroke();
+
+  // HP bar
+  ctx.shadowBlur = 0;
+  const barW = CELL * 0.6, barH = 3;
+  const barX = -barW / 2, barY = CELL * 0.40;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, barW, barH);
+  const fill = Math.max(0, Math.min(1, hp / 100));
+  ctx.fillStyle = hp > 100 ? '#44ffff' : fill > 0.5 ? color : fill > 0.25 ? '#ffcc00' : '#ff4444';
+  ctx.fillRect(barX, barY, barW * fill, barH);
+  if (hp > 100) {
+    const over = Math.min(1, (hp - 100) / 100);
+    ctx.fillStyle = '#44ffff88';
+    ctx.fillRect(barX, barY, barW * over, barH);
+  }
+
+  ctx.restore();
+}
+
+function drawBullet(cx, cy, color) {
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = color + '88';
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPickup(cx, cy, kind, now) {
+  ctx.save();
+  const bob = Math.sin(now / 300) * 2;
+  ctx.translate(cx, cy + bob);
+
+  if (kind === 'medkit') {
+    const s = CELL * 0.32;
+    ctx.shadowColor = '#ff4444';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#cc2222';
+    roundRect(ctx, -s, -s, s * 2, s * 2, 4);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    const cw = s * 0.35, ch = s * 1.2;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
+    ctx.fillRect(-ch / 2, -cw / 2, ch, cw);
+  }
+
+  ctx.restore();
+}
+
+function drawExplosion(ex, ey, elapsed) {
+  const progress = elapsed / 320; // 0..1
+  const maxR = CELL * 1.2;
+  for (let i = 0; i < 4; i++) {
+    const frac = (progress * 4 - i);
+    if (frac < 0 || frac > 1) continue;
+    ctx.beginPath();
+    ctx.arc(ex, ey, maxR * frac, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, ${100 + i*40}, 0, ${0.6 * (1 - frac)})`;
+    ctx.fill();
   }
 }
 
+function drawFlash(fx, fy, elapsed) {
+  const alpha = Math.max(0, 1 - elapsed / 150);
+  ctx.fillStyle = `rgba(255,255,255,${alpha * 0.6})`;
+  ctx.fillRect(fx - CELL/2, fy - CELL/2, CELL, CELL);
+}
+
+// ── Render loop (requestAnimationFrame) ────────────────────────────────
+function frame(now) {
+  requestAnimationFrame(frame);
+
+  if (!state || !staticLayer) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (staticLayer) ctx.drawImage(staticLayer, 0, 0);
+    return;
+  }
+
+  // Compute interpolation factor
+  const elapsed = now - lastTickTime;
+  lerpT = Math.min(1, elapsed / Math.max(tickInterval, 16));
+
+  const prev = prevState || state;
+  const next = state;
+
+  // Static map
+  ctx.drawImage(staticLayer, 0, 0);
+
+  // Flashes
+  flashes = flashes.filter(f => {
+    const age = now - f.t;
+    if (age > 150) return false;
+    drawFlash(f.x * CELL + CELL/2, f.y * CELL + CELL/2, age);
+    return true;
+  });
+
+  // Radiation overlay
+  const radLevel = next.radiationLevel || 0;
+  if (radLevel > 0) {
+    const W = next.width, H = next.height;
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const dist = Math.min(x - 1, y - 1, (W - 2) - x, (H - 2) - y);
+        if (dist < radLevel) {
+          const intensity = Math.min(1, (radLevel - dist) * 0.25);
+          ctx.fillStyle = `rgba(80, 255, 0, ${0.06 + intensity * 0.12})`;
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+      }
+    }
+  }
+
+  // Pickups
+  for (const p of (next.pickups || [])) {
+    drawPickup(p.x * CELL + CELL/2, p.y * CELL + CELL/2, p.kind, now);
+  }
+
+  // Bullets (interpolated)
+  for (const nb of next.bullets) {
+    const [dx, dy] = dirDelta(nb.direction);
+    let bx, by;
+    if (prev !== next) {
+      bx = lerp(nb.x - dx * 2, nb.x, lerpT) * CELL + CELL/2;
+      by = lerp(nb.y - dy * 2, nb.y, lerpT) * CELL + CELL/2;
+    } else {
+      bx = nb.x * CELL + CELL/2;
+      by = nb.y * CELL + CELL/2;
+    }
+    drawBullet(bx, by, getTankColor(nb.ownerId));
+  }
+
+  // Tanks (interpolated)
+  for (const nt of next.tanks) {
+    if (!nt.alive) continue;
+    const pt = prev.tanks.find(t => t.id === nt.id);
+    let tx, ty;
+    if (pt && prev !== next) {
+      tx = lerp(pt.x, nt.x, lerpT) * CELL + CELL/2;
+      ty = lerp(pt.y, nt.y, lerpT) * CELL + CELL/2;
+    } else {
+      tx = nt.x * CELL + CELL/2;
+      ty = nt.y * CELL + CELL/2;
+    }
+    drawTank(tx, ty, nt.direction, getTankColor(nt.id), nt.hp);
+  }
+
+  // Explosions
+  explosions = explosions.filter(exp => {
+    const age = now - exp.t;
+    if (age > 320) return false;
+    drawExplosion(exp.x * CELL + CELL/2, exp.y * CELL + CELL/2, age);
+    return true;
+  });
+}
+requestAnimationFrame(frame);
+
+// ── Panel ──────────────────────────────────────────────────────────────
 function renderPanel() {
   const el = document.getElementById('panel');
   const s = statsData;
   const hasStats = s && s.games > 0;
 
-  // Build tank live state lookup
   const tankMap = {};
   if (state) {
     for (const t of state.tanks) tankMap[t.id] = t;
@@ -120,7 +466,7 @@ function renderPanel() {
     const winPct = hasStats ? ((s.wins[b.id] / s.games) * 100).toFixed(0) + '%' : '-';
     const kills = hasStats ? (s.kills[b.id] || 0) : '-';
     const t = tankMap[b.id];
-    const hp = t ? (t.alive ? t.hp : '<span style="color:#ef4444">DEAD</span>') : '-';
+    const hp = t ? (t.alive ? t.hp : '<span style="color:#ff4444">DEAD</span>') : '-';
 
     return `<tr>
       <td style="color:${color}"><input class="bot-id" value="${b.id}" data-idx="${i}"></td>
@@ -145,148 +491,15 @@ function renderPanel() {
     </div>`;
 }
 
-function applyBotConfig() {
-  const el = document.getElementById('panel');
-  const ids = el.querySelectorAll('.bot-id');
-  const ports = el.querySelectorAll('.bot-port');
-  const bots = [];
-  ids.forEach((inp, i) => {
-    const id = inp.value.trim();
-    const port = ports[i].value.trim();
-    if (id && port) {
-      bots.push({ id, url: `http://localhost:${port}` });
-    }
-  });
-  if (ws && ws.readyState === 1 && bots.length > 0) {
-    ws.send(JSON.stringify({ type: 'set_bots', bots }));
-  }
-}
-
-function setTickInterval() {
-  const val = parseInt(document.getElementById('tick-input').value, 10);
-  if (ws && ws.readyState === 1 && val >= 10) {
-    ws.send(JSON.stringify({ type: 'set_tick', value: val }));
-  }
-}
-
-function render() {
-  if (!state) return;
-  const { width, height, walls, tanks, bullets, pickups, radiationLevel } = state;
-
-  ctx.fillStyle = '#0f3460';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw cells
-  for (let x = 0; x < width; x++) {
-    for (let y = 0; y < height; y++) {
-      const px = x * CELL + PAD;
-      const py = y * CELL + PAD;
-      const s = CELL - PAD * 2;
-
-      // Background
-      ctx.fillStyle = '#16213e';
-      ctx.fillRect(px, py, s, s);
-
-      // Radiation
-      if (radiationLevel > 0 && isIrradiated(x, y, radiationLevel)) {
-        ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
-        ctx.fillRect(px, py, s, s);
-      }
-    }
-  }
-
-  // Walls
-  for (const [wx, wy] of walls) {
-    ctx.fillStyle = '#533483';
-    ctx.fillRect(wx * CELL + PAD, wy * CELL + PAD, CELL - PAD * 2, CELL - PAD * 2);
-  }
-
-  // Border walls
-  for (let i = 0; i < width; i++) {
-    drawBorderWall(i, 0);
-    drawBorderWall(i, height - 1);
-  }
-  for (let i = 0; i < height; i++) {
-    drawBorderWall(0, i);
-    drawBorderWall(width - 1, i);
-  }
-
-  // Pickups
-  for (const p of pickups) {
-    ctx.fillStyle = '#22c55e';
-    const cx = p.x * CELL + CELL / 2;
-    const cy = p.y * CELL + CELL / 2;
-    // Draw cross
-    ctx.fillRect(cx - 3, cy - 8, 6, 16);
-    ctx.fillRect(cx - 8, cy - 3, 16, 6);
-  }
-
-  // Tanks
-  for (const tank of tanks) {
-    if (!tank.alive) continue;
-    const color = getTankColor(tank.id);
-    const px = tank.x * CELL + PAD + 2;
-    const py = tank.y * CELL + PAD + 2;
-    const s = CELL - PAD * 2 - 4;
-
-    // Body
-    ctx.fillStyle = color;
-    ctx.fillRect(px, py, s, s);
-
-    // Direction barrel
-    ctx.fillStyle = '#fff';
-    const cx = tank.x * CELL + CELL / 2;
-    const cy = tank.y * CELL + CELL / 2;
-    const barrelLen = 10;
-    const barrelW = 3;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    const angles = { up: -Math.PI/2, down: Math.PI/2, left: Math.PI, right: 0 };
-    ctx.rotate(angles[tank.direction] || 0);
-    ctx.fillRect(0, -barrelW/2, barrelLen, barrelW);
-    ctx.restore();
-
-    // HP bar
-    const hpFrac = Math.max(0, tank.hp / 100);
-    ctx.fillStyle = '#333';
-    ctx.fillRect(tank.x * CELL + 2, tank.y * CELL - 5, CELL - 4, 4);
-    ctx.fillStyle = hpFrac > 0.5 ? '#22c55e' : hpFrac > 0.25 ? '#eab308' : '#ef4444';
-    ctx.fillRect(tank.x * CELL + 2, tank.y * CELL - 5, (CELL - 4) * Math.min(hpFrac, 1), 4);
-
-    // Tank ID label
-    ctx.fillStyle = '#fff';
-    ctx.font = '9px monospace';
-    ctx.fillText(tank.id, tank.x * CELL + 2, tank.y * CELL - 7);
-  }
-
-  // Bullets
-  for (const b of bullets) {
-    ctx.fillStyle = '#ffd700';
-    ctx.beginPath();
-    ctx.arc(b.x * CELL + CELL / 2, b.y * CELL + CELL / 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function drawBorderWall(x, y) {
-  ctx.fillStyle = '#2c2c54';
-  ctx.fillRect(x * CELL + PAD, y * CELL + PAD, CELL - PAD * 2, CELL - PAD * 2);
-}
-
-function isIrradiated(x, y, level) {
-  if (level <= 0) return false;
-  return Math.min(x - 1, y - 1, 18 - x, 18 - y) < level;
-}
-
+// ── HUD ────────────────────────────────────────────────────────────────
 function updateHUD() {
   if (!state) return;
-  document.getElementById('tick-display').textContent = `Tick: ${state.tick}`;
+  document.getElementById('tick-display').textContent = `TICK: ${state.tick}`;
 
   const statusEl = document.getElementById('status');
   if (state.over) {
-    statusEl.textContent = state.winner ? `Winner: ${state.winner}` : 'DRAW';
-    statusEl.style.color = '#22c55e';
+    statusEl.textContent = state.winner ? `WINNER: ${state.winner}` : 'DRAW';
+    statusEl.style.color = '#4ade80';
   } else {
     statusEl.textContent = 'RUNNING';
     statusEl.style.color = '#eab308';
@@ -294,20 +507,18 @@ function updateHUD() {
 
   renderPanel();
 
-  // Clear log on new game start
   if (state.tick === 0) {
     document.getElementById('log').innerHTML = '';
   }
 
-  // Events log
   if (state.events && state.events.length > 0) {
     const logEl = document.getElementById('log');
     for (const ev of state.events) {
       const div = document.createElement('div');
       div.className = 'log-entry';
-      if (ev.type === 'kill') div.innerHTML = `<span style="color:#ef4444">[${state.tick}] ${ev.attackerId} killed ${ev.targetId}</span>`;
+      if (ev.type === 'kill') div.innerHTML = `<span style="color:#ff4444">[${state.tick}] ${ev.attackerId} killed ${ev.targetId}</span>`;
       else if (ev.type === 'hit') div.innerHTML = `<span style="color:#f97316">[${state.tick}] ${ev.attackerId} hit ${ev.targetId} for ${ev.damage}</span>`;
-      else if (ev.type === 'medkit') div.innerHTML = `<span style="color:#22c55e">[${state.tick}] ${ev.tankId} picked up medkit (HP:${ev.hp})</span>`;
+      else if (ev.type === 'medkit') div.innerHTML = `<span style="color:#4ade80">[${state.tick}] ${ev.tankId} picked up medkit (HP:${ev.hp})</span>`;
       else if (ev.type === 'radiation_kill') div.innerHTML = `<span style="color:#a855f7">[${state.tick}] ${ev.tankId} died to radiation</span>`;
       logEl.appendChild(div);
       logEl.scrollTop = logEl.scrollHeight;
