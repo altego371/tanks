@@ -38,14 +38,22 @@ cd bots/simple && GOOS=linux GOARCH=amd64 go build -o bot .  # build binary for 
 
 ## Bot protocol
 
-Bots are HTTP servers. The game server sends `POST /action` with JSON game state every 200ms tick. Bot must respond with `{"action": "..."}` within 100ms or defaults to `idle`. See `doc/BOT.md` for full request/response schema and valid actions.
+Bots are HTTP servers. The game server sends `POST /action` with JSON game state each tick. Bot must respond with `{"action": "..."}` within 100ms or defaults to `idle`. See `doc/BOT.md` for full request/response schema and valid actions.
+
+## Server features
+
+- Auto-restarts next game after 1s pause when current game ends
+- Cumulative stats tracking (wins, kills, draws) across games
+- Tick interval adjustable on the fly from the UI (default 20ms)
+- START / STOP / RESET STATS controls in the frontend
 
 ## Configuration
 
 - Server port: `PORT` env var (default 3000)
 - Bot endpoints: `BOTS` array in `server/index.js`
 - Bot port: `-port` flag (default 3001)
-- Tick interval: 200ms, bot timeout: 100ms (constants in `server/index.js`)
+- Tick interval: default 20ms, changeable via UI; bot timeout: 100ms
+- Restart delay: `RESTART_DELAY` in `server/index.js` (default 1000ms)
 
 ## Bot requirements
 
