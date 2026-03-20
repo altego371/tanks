@@ -8,10 +8,12 @@ const PORT = process.env.PORT || 3000;
 let tickInterval = 20;
 const BOT_TIMEOUT = 100;
 
-// Bot configuration — edit URLs/IDs here
-const BOTS = [
+// Bot configuration — default 4 bots on ports 3001-3004
+let BOTS = [
   { id: 'bot-1', url: 'http://localhost:3001' },
   { id: 'bot-2', url: 'http://localhost:3002' },
+  { id: 'bot-3', url: 'http://localhost:3003' },
+  { id: 'bot-4', url: 'http://localhost:3004' },
 ];
 
 const app = express();
@@ -156,6 +158,8 @@ app.get('/api/stats', (req, res) => {
 
 // WebSocket — send current state on connect
 wss.on('connection', (ws) => {
+  ws.send(JSON.stringify({ type: 'bots', data: BOTS }));
+  ws.send(JSON.stringify({ type: 'stats', data: stats }));
   if (gameState) {
     ws.send(JSON.stringify({ type: 'state', data: getPublicState(gameState) }));
   }
@@ -169,6 +173,18 @@ wss.on('connection', (ws) => {
         stats.draws = 0;
         stats.history = [];
         for (const b of BOTS) { stats.wins[b.id] = 0; stats.kills[b.id] = 0; }
+        broadcast({ type: 'stats', data: stats });
+      }
+      if (data.type === 'set_bots' && Array.isArray(data.bots)) {
+        BOTS = data.bots.filter(b => b.id && b.url);
+        // Reset stats for new bot set
+        stats.games = 0;
+        stats.draws = 0;
+        stats.history = [];
+        stats.wins = {};
+        stats.kills = {};
+        for (const b of BOTS) { stats.wins[b.id] = 0; stats.kills[b.id] = 0; }
+        broadcast({ type: 'bots', data: BOTS });
         broadcast({ type: 'stats', data: stats });
       }
       if (data.type === 'set_tick' && typeof data.value === 'number' && data.value >= 10) {

@@ -13,15 +13,17 @@
   #controls button:hover { background: #c73652; }
   #controls input[type=number] { width: 70px; padding: 6px 8px; font-size: 14px; font-family: inherit; background: #16213e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; text-align: center; }
   #controls label { font-size: 13px; color: #aaa; }
-  #hud { display: flex; gap: 24px; margin-bottom: 12px; font-size: 14px; }
-  .tank-info { padding: 6px 12px; border-radius: 4px; background: #16213e; }
   canvas { border: 2px solid #0f3460; border-radius: 4px; }
-  #stats { margin-bottom: 12px; width: 602px; background: #16213e; padding: 12px; border-radius: 4px; font-size: 14px; }
-  #stats table { width: 100%; border-collapse: collapse; }
-  #stats th, #stats td { padding: 4px 8px; text-align: left; }
-  #stats th { color: #e94560; border-bottom: 1px solid #0f3460; }
-  #stats td { border-bottom: 1px solid #0f3460; }
-  .stats-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  #panel { margin-bottom: 12px; width: 602px; background: #16213e; padding: 12px; border-radius: 4px; font-size: 13px; }
+  #panel table { width: 100%; border-collapse: collapse; }
+  #panel th, #panel td { padding: 5px 6px; text-align: center; }
+  #panel th { color: #e94560; border-bottom: 1px solid #0f3460; font-size: 12px; }
+  #panel td { border-bottom: 1px solid #0f3460; }
+  #panel input { padding: 3px 6px; font-size: 13px; font-family: inherit; background: #1a1a2e; color: #eee; border: 1px solid #0f3460; border-radius: 4px; text-align: center; }
+  #panel input.bot-id { width: 80px; }
+  #panel input.bot-port { width: 60px; }
+  #panel .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; }
+  #panel button { background: #0f3460; color: #eee; border: none; padding: 4px 12px; font-size: 13px; cursor: pointer; font-family: inherit; border-radius: 4px; }
   #log { margin-top: 12px; font-size: 12px; max-height: 120px; overflow-y: auto; width: 602px; background: #16213e; padding: 8px; border-radius: 4px; }
   .log-entry { margin-bottom: 2px; }
 </style>
@@ -36,8 +38,7 @@
   <span id="tick-display" style="margin-left:16px;">Tick: -</span>
   <span id="status" style="margin-left:16px;"></span>
 </div>
-<div id="stats"></div>
-<div id="hud"></div>
+<div id="panel"></div>
 <canvas id="canvas" width="602" height="602"></canvas>
 <div id="log"></div>
 
@@ -59,6 +60,7 @@ function getTankColor(id) {
 let ws = null;
 let state = null;
 let statsData = null;
+let botsConfig = [];
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -72,7 +74,11 @@ function connect() {
     }
     if (msg.type === 'stats') {
       statsData = msg.data;
-      updateStats();
+      renderPanel();
+    }
+    if (msg.type === 'bots') {
+      botsConfig = msg.data;
+      renderPanel();
     }
   };
   ws.onclose = () => setTimeout(connect, 1000);
@@ -96,40 +102,71 @@ function resetStats() {
   }
 }
 
+function renderPanel() {
+  const el = document.getElementById('panel');
+  const s = statsData;
+  const hasStats = s && s.games > 0;
+
+  // Build tank live state lookup
+  const tankMap = {};
+  if (state) {
+    for (const t of state.tanks) tankMap[t.id] = t;
+  }
+
+  const rows = botsConfig.map((b, i) => {
+    const color = getTankColor(b.id);
+    const port = new URL(b.url).port || '3001';
+    const wins = hasStats ? (s.wins[b.id] || 0) : '-';
+    const winPct = hasStats ? ((s.wins[b.id] / s.games) * 100).toFixed(0) + '%' : '-';
+    const kills = hasStats ? (s.kills[b.id] || 0) : '-';
+    const t = tankMap[b.id];
+    const hp = t ? (t.alive ? t.hp : '<span style="color:#ef4444">DEAD</span>') : '-';
+
+    return `<tr>
+      <td style="color:${color}"><input class="bot-id" value="${b.id}" data-idx="${i}"></td>
+      <td><input class="bot-port" type="number" value="${port}" data-idx="${i}" min="1"></td>
+      <td>${hp}</td>
+      <td>${wins}</td>
+      <td>${winPct}</td>
+      <td>${kills}</td>
+    </tr>`;
+  }).join('');
+
+  const gamesInfo = hasStats ? `Games: <b>${s.games}</b> | Draws: <b>${s.draws}</b>` : '';
+
+  el.innerHTML = `
+    <table>
+      <tr><th>Bot</th><th>Port</th><th>HP</th><th>Wins</th><th>Win%</th><th>Kills</th></tr>
+      ${rows}
+    </table>
+    <div class="panel-footer">
+      <span>${gamesInfo}</span>
+      <button onclick="applyBotConfig()">APPLY</button>
+    </div>`;
+}
+
+function applyBotConfig() {
+  const el = document.getElementById('panel');
+  const ids = el.querySelectorAll('.bot-id');
+  const ports = el.querySelectorAll('.bot-port');
+  const bots = [];
+  ids.forEach((inp, i) => {
+    const id = inp.value.trim();
+    const port = ports[i].value.trim();
+    if (id && port) {
+      bots.push({ id, url: `http://localhost:${port}` });
+    }
+  });
+  if (ws && ws.readyState === 1 && bots.length > 0) {
+    ws.send(JSON.stringify({ type: 'set_bots', bots }));
+  }
+}
+
 function setTickInterval() {
   const val = parseInt(document.getElementById('tick-input').value, 10);
   if (ws && ws.readyState === 1 && val >= 10) {
     ws.send(JSON.stringify({ type: 'set_tick', value: val }));
   }
-}
-
-function updateStats() {
-  const el = document.getElementById('stats');
-  if (!statsData || statsData.games === 0) {
-    el.innerHTML = '';
-    return;
-  }
-  const s = statsData;
-  const ids = Object.keys(s.wins);
-  const rows = ids.map(id => {
-    const color = getTankColor(id);
-    const winRate = s.games > 0 ? ((s.wins[id] / s.games) * 100).toFixed(0) : 0;
-    return `<tr>
-      <td style="color:${color}"><b>${id}</b></td>
-      <td>${s.wins[id]}</td>
-      <td>${winRate}%</td>
-      <td>${s.kills[id] || 0}</td>
-    </tr>`;
-  }).join('');
-  el.innerHTML = `
-    <div class="stats-header">
-      <span>Games: <b>${s.games}</b></span>
-      <span>Draws: <b>${s.draws}</b></span>
-    </div>
-    <table>
-      <tr><th>Bot</th><th>Wins</th><th>Win%</th><th>Total Kills</th></tr>
-      ${rows}
-    </table>`;
 }
 
 function render() {
@@ -255,14 +292,7 @@ function updateHUD() {
     statusEl.style.color = '#eab308';
   }
 
-  const hud = document.getElementById('hud');
-  hud.innerHTML = state.tanks.map(t => {
-    const color = getTankColor(t.id);
-    const status = t.alive ? `HP:${t.hp}` : 'DEAD';
-    return `<div class="tank-info" style="border-left:3px solid ${color}">
-      <b>${t.id}</b> ${status} | Score:${t.score} | Kills:${t.kills}
-    </div>`;
-  }).join('');
+  renderPanel();
 
   // Clear log on new game start
   if (state.tick === 0) {
