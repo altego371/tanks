@@ -28,18 +28,27 @@ const RESTART_DELAY = 1000; // ms pause between games
 let gameState = null;
 let tickTimer = null;
 let running = false;
+let maxTimeoutTicks = 1; // kill bot after this many consecutive timeouts
+const botTimeouts = {};  // botId -> consecutive timeout count
 
-// Cumulative stats across all games
-const stats = {
-  games: 0,
-  wins: {},   // botId -> win count
-  draws: 0,
-  kills: {},  // botId -> total kills
-  history: [], // per-game results
-};
-for (const b of BOTS) {
-  stats.wins[b.id] = 0;
-  stats.kills[b.id] = 0;
+const STATS_WINDOW = 10; // compute stats over last N games
+let history = []; // per-game results
+
+function computeStats() {
+  const recent = history.slice(-STATS_WINDOW);
+  const s = { games: recent.length, wins: {}, draws: 0, kills: {}, total: history.length };
+  for (const b of BOTS) { s.wins[b.id] = 0; s.kills[b.id] = 0; }
+  for (const r of recent) {
+    if (r.winner) {
+      s.wins[r.winner] = (s.wins[r.winner] || 0) + 1;
+    } else {
+      s.draws++;
+    }
+    for (const [id, t] of Object.entries(r.tanks)) {
+      s.kills[id] = (s.kills[id] || 0) + t.kills;
+    }
+  }
+  return s;
 }
 
 function broadcast(data) {
@@ -62,9 +71,9 @@ async function callBot(botConfig, state) {
       signal: controller.signal,
     });
     const data = await res.json();
-    return data.action || 'idle';
+    return { action: data.action || 'idle', timedOut: false };
   } catch {
-    return 'idle';
+    return { action: 'idle', timedOut: true };
   } finally {
     clearTimeout(timeout);
   }
@@ -85,7 +94,26 @@ async function tick() {
 
   const actionMap = {};
   aliveBots.forEach((bot, i) => {
-    actionMap[bot.id] = results[i].status === 'fulfilled' ? results[i].value : 'idle';
+    const result = results[i].status === 'fulfilled' ? results[i].value : { action: 'idle', timedOut: true };
+    actionMap[bot.id] = result.action;
+
+    // Track consecutive timeouts
+    if (result.timedOut) {
+      botTimeouts[bot.id] = (botTimeouts[bot.id] || 0) + 1;
+      if (maxTimeoutTicks > 0 && botTimeouts[bot.id] >= maxTimeoutTicks) {
+        // Kill the bot
+        const tank = gameState.tanks[bot.id];
+        if (tank && tank.alive) {
+          tank.alive = false;
+          tank.hp = 0;
+          gameState.events = gameState.events || [];
+          gameState.events.push({ type: 'timeout_kill', tankId: bot.id, ticks: botTimeouts[bot.id] });
+          console.log(`${bot.id} killed: no response for ${botTimeouts[bot.id]} ticks`);
+        }
+      }
+    } else {
+      botTimeouts[bot.id] = 0;
+    }
   });
 
   gameState = applyActions(gameState, actionMap);
@@ -95,22 +123,15 @@ async function tick() {
     clearInterval(tickTimer);
     tickTimer = null;
 
-    // Record stats
-    stats.games++;
-    const result = { game: stats.games, winner: gameState.winner, tick: gameState.tick, tanks: {} };
+    // Record result
+    const result = { game: history.length + 1, winner: gameState.winner, tick: gameState.tick, tanks: {} };
     for (const tank of Object.values(gameState.tanks)) {
-      stats.kills[tank.id] = (stats.kills[tank.id] || 0) + tank.kills;
       result.tanks[tank.id] = { hp: tank.hp, kills: tank.kills, alive: tank.alive };
     }
-    if (gameState.winner) {
-      stats.wins[gameState.winner] = (stats.wins[gameState.winner] || 0) + 1;
-    } else {
-      stats.draws++;
-    }
-    stats.history.push(result);
+    history.push(result);
 
-    console.log(`Game #${stats.games} over at tick ${gameState.tick}. Winner: ${gameState.winner || 'draw'}`);
-    broadcast({ type: 'stats', data: stats });
+    console.log(`Game #${history.length} over at tick ${gameState.tick}. Winner: ${gameState.winner || 'draw'}`);
+    broadcast({ type: 'stats', data: computeStats() });
 
     // Auto-start next game after delay
     if (running) {
@@ -122,10 +143,11 @@ async function tick() {
 function startGame() {
   if (tickTimer) clearInterval(tickTimer);
   running = true;
+  for (const b of BOTS) botTimeouts[b.id] = 0;
   gameState = createGame(BOTS);
-  console.log(`Game #${stats.games + 1} started`);
+  console.log(`Game #${history.length + 1} started`);
   broadcast({ type: 'state', data: getPublicState(gameState) });
-  broadcast({ type: 'stats', data: stats });
+  broadcast({ type: 'stats', data: computeStats() });
   tickTimer = setInterval(tick, tickInterval);
 }
 
@@ -153,13 +175,13 @@ app.get('/api/state', (req, res) => {
 });
 
 app.get('/api/stats', (req, res) => {
-  res.json(stats);
+  res.json(computeStats());
 });
 
 // WebSocket — send current state on connect
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'bots', data: BOTS }));
-  ws.send(JSON.stringify({ type: 'stats', data: stats }));
+  ws.send(JSON.stringify({ type: 'stats', data: computeStats() }));
   if (gameState) {
     ws.send(JSON.stringify({ type: 'state', data: getPublicState(gameState) }));
   }
@@ -169,23 +191,17 @@ wss.on('connection', (ws) => {
       if (data.type === 'start') startGame();
       if (data.type === 'stop') stopGames();
       if (data.type === 'reset_stats') {
-        stats.games = 0;
-        stats.draws = 0;
-        stats.history = [];
-        for (const b of BOTS) { stats.wins[b.id] = 0; stats.kills[b.id] = 0; }
-        broadcast({ type: 'stats', data: stats });
+        history = [];
+        broadcast({ type: 'stats', data: computeStats() });
       }
       if (data.type === 'set_bots' && Array.isArray(data.bots)) {
         BOTS = data.bots.filter(b => b.id && b.url);
-        // Reset stats for new bot set
-        stats.games = 0;
-        stats.draws = 0;
-        stats.history = [];
-        stats.wins = {};
-        stats.kills = {};
-        for (const b of BOTS) { stats.wins[b.id] = 0; stats.kills[b.id] = 0; }
+        history = [];
         broadcast({ type: 'bots', data: BOTS });
-        broadcast({ type: 'stats', data: stats });
+        broadcast({ type: 'stats', data: computeStats() });
+      }
+      if (data.type === 'set_timeout_ticks' && typeof data.value === 'number' && data.value >= 0) {
+        maxTimeoutTicks = data.value;
       }
       if (data.type === 'set_tick' && typeof data.value === 'number' && data.value >= 10) {
         tickInterval = data.value;

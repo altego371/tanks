@@ -18,10 +18,11 @@
   canvas { border: 2px solid #1a3a1a; border-radius: 4px; display: block; }
   #panel { margin-bottom: 12px; background: #111; padding: 12px; border-radius: 4px; font-size: 13px; border: 1px solid #1a3a1a; }
   #panel table { width: 100%; border-collapse: collapse; }
-  #panel th, #panel td { padding: 5px 8px; text-align: center; }
+  #panel th, #panel td { padding: 2px 6px; text-align: center; }
   #panel th { color: #4ade80; border-bottom: 1px solid #1a3a1a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   #panel td { border-bottom: 1px solid #111; }
-  #panel input { padding: 3px 6px; font-size: 13px; font-family: inherit; background: #0a0a0a; color: #ccc; border: 1px solid #2a5a2a; border-radius: 4px; text-align: center; }
+  #panel input { padding: 1px 4px; font-size: 12px; font-family: inherit; background: #0a0a0a; color: #ccc; border: 1px solid #2a5a2a; border-radius: 4px; text-align: center; }
+  #panel .bot-icon { width: 18px; height: 18px; vertical-align: middle; margin-right: 2px; }
   #panel input.bot-id { width: 80px; }
   #panel input.bot-port { width: 60px; }
   #panel .panel-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 13px; color: #666; }
@@ -37,6 +38,7 @@
   <button onclick="stopGames()">STOP</button>
   <button onclick="resetStats()">RESET STATS</button>
   <label>Tick ms: <input type="number" id="tick-input" value="20" min="10" step="10" onchange="setTickInterval()"></label>
+  <label>Timeout ticks: <input type="number" id="timeout-ticks-input" value="1" min="0" step="1" onchange="setTimeoutTicks()"></label>
   <span class="tick-display" id="tick-display">TICK: -</span>
   <span class="status" id="status"></span>
 </div>
@@ -139,6 +141,11 @@ function setTickInterval() {
   const val = parseInt(document.getElementById('tick-input').value, 10);
   if (val >= 10) { tickInterval = val; wsSend({ type: 'set_tick', value: val }); }
 }
+function setTimeoutTicks() {
+  const val = parseInt(document.getElementById('timeout-ticks-input').value, 10);
+  if (val >= 0) wsSend({ type: 'set_timeout_ticks', value: val });
+}
+
 function applyBotConfig() {
   const el = document.getElementById('panel');
   const ids = el.querySelectorAll('.bot-id');
@@ -448,6 +455,41 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
+// ── Mini tank icon ─────────────────────────────────────────────────────
+const iconCache = {};
+function botIcon(color) {
+  if (iconCache[color]) return iconCache[color];
+  const s = 24;
+  const c = document.createElement('canvas');
+  c.width = s; c.height = s;
+  const g = c.getContext('2d');
+  g.translate(s/2, s/2);
+  // Body
+  g.fillStyle = color + '33';
+  g.strokeStyle = color;
+  g.lineWidth = 1.5;
+  roundRect(g, -8, -8, 16, 16, 3);
+  g.fill(); g.stroke();
+  // Turret
+  g.beginPath();
+  g.arc(0, 0, 3, 0, Math.PI * 2);
+  g.fillStyle = color + '88';
+  g.fill();
+  g.strokeStyle = color;
+  g.lineWidth = 1;
+  g.stroke();
+  // Barrel (pointing right)
+  g.strokeStyle = color;
+  g.lineWidth = 2.5;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(3, 0);
+  g.lineTo(10, 0);
+  g.stroke();
+  iconCache[color] = c.toDataURL();
+  return iconCache[color];
+}
+
 // ── Panel ──────────────────────────────────────────────────────────────
 function renderPanel() {
   const el = document.getElementById('panel');
@@ -469,7 +511,7 @@ function renderPanel() {
     const hp = t ? (t.alive ? t.hp : '<span style="color:#ff4444">DEAD</span>') : '-';
 
     return `<tr>
-      <td style="color:${color}"><input class="bot-id" value="${b.id}" data-idx="${i}"></td>
+      <td style="color:${color}"><img class="bot-icon" src="${botIcon(color)}"><input class="bot-id" value="${b.id}" data-idx="${i}"></td>
       <td><input class="bot-port" type="number" value="${port}" data-idx="${i}" min="1"></td>
       <td>${hp}</td>
       <td>${wins}</td>
@@ -478,7 +520,7 @@ function renderPanel() {
     </tr>`;
   }).join('');
 
-  const gamesInfo = hasStats ? `Games: <b>${s.games}</b> | Draws: <b>${s.draws}</b>` : '';
+  const gamesInfo = hasStats ? `Last ${s.games} of ${s.total || s.games} | Draws: <b>${s.draws}</b>` : '';
 
   el.innerHTML = `
     <table>
@@ -520,6 +562,7 @@ function updateHUD() {
       else if (ev.type === 'hit') div.innerHTML = `<span style="color:#f97316">[${state.tick}] ${ev.attackerId} hit ${ev.targetId} for ${ev.damage}</span>`;
       else if (ev.type === 'medkit') div.innerHTML = `<span style="color:#4ade80">[${state.tick}] ${ev.tankId} picked up medkit (HP:${ev.hp})</span>`;
       else if (ev.type === 'radiation_kill') div.innerHTML = `<span style="color:#a855f7">[${state.tick}] ${ev.tankId} died to radiation</span>`;
+      else if (ev.type === 'timeout_kill') div.innerHTML = `<span style="color:#666">[${state.tick}] ${ev.tankId} killed: no response for ${ev.ticks} ticks</span>`;
       logEl.appendChild(div);
       logEl.scrollTop = logEl.scrollHeight;
     }
